@@ -1,0 +1,14 @@
+[package]
+name = "brainfuck"
+version = "1.0.0"
+edition = "2021"
+default-run = "bf"
+
+
+[[bin]]
+name = "bf"
+path = "src/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
