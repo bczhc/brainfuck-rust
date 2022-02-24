@@ -76,7 +76,7 @@ fn find_paired_right_bracket(src: &str, position: usize) -> usize {
             b'[' => {
                 count += 1;
             }
-            b'[' => {
+            b']' => {
                 if count == 0 {
                     return i;
                 }
@@ -114,7 +114,7 @@ struct DataCursor {
 impl DataCursor {
     fn new() -> Self {
         Self {
-            vec: Vec::with_capacity(100),
+            vec: vec![0_u8; 100],
             pos: 0,
         }
     }
@@ -135,11 +135,13 @@ impl DataCursor {
     }
 
     fn increase(&mut self) {
-        self.vec[self.pos].overflowing_add_signed(1);
+        let x = self.vec.get_mut(self.pos).unwrap();
+        *x = x.overflowing_add(1).0;
     }
 
     fn decrease(&mut self) {
-        self.vec[self.pos] = self.vec[self.pos].overflowing_sub(1).0;
+        let x = self.vec.get_mut(self.pos).unwrap();
+        *x = x.overflowing_sub(1).0;
     }
 
     fn print<W>(&self, out: &mut W)
@@ -147,6 +149,7 @@ impl DataCursor {
         W: Write,
     {
         out.write_1_byte(self.vec[self.pos]).unwrap();
+        out.flush().unwrap();
     }
 
     fn read_and_set<R>(&mut self, reader: &mut R)
