@@ -18,3 +18,15 @@ impl FromStr for EofBehavior {
         }
     }
 }
+
+static SRC_CHARSET: &[u8; 8] = b"<>+-,.[]";
+
+pub fn minimize(src: &str) -> String {
+    let mut output = String::new();
+    for b in src.as_bytes() {
+        if SRC_CHARSET.contains(b) {
+            output.push(char::from(*b));
+        }
+    }
+    output
+}

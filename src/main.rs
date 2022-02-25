@@ -2,7 +2,7 @@
 
 mod lib;
 
-use crate::lib::EofBehavior;
+use crate::lib::{minimize, EofBehavior};
 use clap::{Arg, Command};
 use std::collections::LinkedList;
 use std::fs::File;
@@ -35,6 +35,15 @@ fn main() -> Result<()> {
                 .possible_values(["zero", "neg1", "NC"])
                 .ignore_case(true),
         )
+        .arg(
+            Arg::new("minimize")
+                .id("minimize")
+                .takes_value(false)
+                .required(false)
+                .short('m')
+                .long("minimize")
+                .help("Minimize the source code"),
+        )
         .get_matches();
 
     let mut stdout = stdout();
@@ -47,6 +56,11 @@ fn main() -> Result<()> {
         file.read_to_string(&mut src)?;
     } else {
         stdin.read_to_string(&mut src)?;
+    }
+
+    if matches.is_present("minimize") {
+        println!("{}", minimize(&src));
+        return Ok(());
     }
 
     let eof_behavior = EofBehavior::from_str(matches.value_of("eof-behavior").unwrap()).unwrap();
