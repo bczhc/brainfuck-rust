@@ -1,5 +1,6 @@
 #![feature(mixed_integer_ops)]
 
+use clap::{Arg, Command};
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::LinkedList;
@@ -8,9 +9,15 @@ use std::io::{stdin, stdout, Read, Stdout, Write};
 use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
 
-// chars: <>+_.,[]
 fn main() {
-    let src_path = "/home/bczhc/code/brainfuck/hello.bf";
+    let matches = Command::new("brainfuck")
+        .bin_name("bf")
+        .author("bczhc <bczhc0@126.com>")
+        .about("Brainfuck interpreter")
+        .arg(Arg::new("src").id("src").required(true).help("Source file"))
+        .get_matches();
+
+    let src_path = matches.value_of("src").unwrap();
     let mut src_file = File::open(src_path).unwrap();
 
     let mut src = String::new();
