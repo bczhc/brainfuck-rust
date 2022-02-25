@@ -5,7 +5,7 @@ use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::LinkedList;
 use std::fs::{read, write, File};
-use std::io::{stdin, stdout, Read, Stdout, Write};
+use std::io::{stdin, stdout, ErrorKind, Read, Stdout, Write};
 use std::ops::{Deref, DerefMut};
 use std::ptr::null_mut;
 
@@ -13,7 +13,7 @@ fn main() {
     let matches = Command::new("brainfuck")
         .bin_name("bf")
         .author("bczhc <bczhc0@126.com>")
-        .about("Brainfuck interpreter")
+        .about("Naive Brainfuck interpreter")
         .arg(Arg::new("src").id("src").required(true).help("Source file"))
         .get_matches();
 
@@ -167,7 +167,18 @@ impl DataCursor {
     where
         R: Read,
     {
-        let read = reader.read_1_byte().unwrap();
+        let result = reader.read_1_byte();
+        let read = match result {
+            Ok(read) => read,
+            Err(ref e) => {
+                if e.kind() == ErrorKind::UnexpectedEof {
+                    0
+                } else {
+                    result.unwrap();
+                    unreachable!();
+                }
+            }
+        };
         self.vec[self.pos] = read;
     }
 
