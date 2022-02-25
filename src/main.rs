@@ -3,7 +3,6 @@
 use clap::{Arg, Command};
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
-use std::collections::linked_list::LinkedList;
 use std::collections::LinkedList;
 use std::fs::{read, write, File};
 use std::io::{stdin, stdout, ErrorKind, Read, Stdout, Write};
@@ -28,8 +27,8 @@ fn main() {
         panic!("Unpaired brackets");
     }
 
-    let mut stdout = Lazy::new(|| stdout());
-    let mut stdin = Lazy::new(|| stdin());
+    let mut stdout = stdout();
+    let mut stdin = stdin();
 
     let mut data_cursor = DataCursor::new();
     let mut inst_cursor = StringCursor::new(&src);
@@ -40,8 +39,8 @@ fn main() {
             b'>' => data_cursor.move_right(),
             b'+' => data_cursor.increase(),
             b'-' => data_cursor.decrease(),
-            b',' => data_cursor.read_and_set(&mut *stdin),
-            b'.' => data_cursor.print(&mut *stdout),
+            b',' => data_cursor.read_and_set(&mut stdin),
+            b'.' => data_cursor.print(&mut stdout),
             b'[' => {
                 if data_cursor.current() == 0 {
                     inst_cursor
@@ -220,69 +219,6 @@ impl<'a> StringCursor<'a> {
 
     fn len(&self) -> usize {
         self.s.len()
-    }
-}
-
-struct Lazy<T, F>
-where
-    F: FnOnce() -> T + Copy,
-{
-    ptr: *mut *mut T,
-    initializer: F,
-}
-
-impl<T, F> Lazy<T, F>
-where
-    F: FnOnce() -> T + Copy,
-{
-    fn new(initializer: F) -> Self {
-        Self {
-            ptr: Box::into_raw(Box::new(null_mut())),
-            initializer,
-        }
-    }
-}
-
-impl<T, F> Deref for Lazy<T, F>
-where
-    F: FnOnce() -> T + Copy,
-{
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        unsafe {
-            if (*self.ptr).is_null() {
-                *self.ptr = Box::into_raw(Box::new((self.initializer)()));
-            }
-            &**self.ptr
-        }
-    }
-}
-
-impl<T, F> DerefMut for Lazy<T, F>
-where
-    F: FnOnce() -> T + Copy,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe {
-            if (*self.ptr).is_null() {
-                *self.ptr = Box::into_raw(Box::new((self.initializer)()));
-            }
-            &mut **self.ptr
-        }
-    }
-}
-
-impl<T, F> Drop for Lazy<T, F>
-where
-    F: FnOnce() -> T + Copy,
-{
-    fn drop(&mut self) {
-        unsafe {
-            let obj_ptr = *self.ptr;
-            drop(Box::from_raw(obj_ptr));
-            drop(Box::from_raw(self.ptr as *mut *mut T));
-        }
     }
 }
 
