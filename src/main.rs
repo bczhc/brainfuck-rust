@@ -1,5 +1,8 @@
 #![feature(mixed_integer_ops)]
 
+mod lib;
+
+use crate::lib::EofBehavior;
 use clap::{Arg, Command};
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
@@ -20,6 +23,18 @@ fn main() {
                 .required(false)
                 .help("Source file. If not given, read source from stdin."),
         )
+        .arg(
+            Arg::new("eof-behavior")
+                .id("eof-behavior")
+                .takes_value(true)
+                .short('E')
+                .long("eof")
+                .required(false)
+                .default_value("zero")
+                .help("EOF behavior")
+                .possible_values(["zero", "neg1", "NC"])
+                .ignore_case(true),
+        )
         .get_matches();
 
     let mut stdout = stdout();
@@ -34,6 +49,8 @@ fn main() {
         stdin.read_to_string(&mut src).unwrap();
     }
 
+    let eof_behavior = EofBehavior::from_str(matches.value_of("eof-behavior").unwrap()).unwrap();
+
     if !check_brackets(&src) {
         panic!("Unpaired brackets");
     }
@@ -47,7 +64,7 @@ fn main() {
             b'>' => data_cursor.move_right(),
             b'+' => data_cursor.increase(),
             b'-' => data_cursor.decrease(),
-            b',' => data_cursor.read_and_set(&mut stdin),
+            b',' => data_cursor.read_and_set(&mut stdin, &eof_behavior),
             b'.' => data_cursor.print(&mut stdout),
             b'[' => {
                 if data_cursor.current() == 0 {
@@ -171,7 +188,7 @@ impl DataCursor {
         out.flush().unwrap();
     }
 
-    fn read_and_set<R>(&mut self, reader: &mut R)
+    fn read_and_set<R>(&mut self, reader: &mut R, eof_behavior: &EofBehavior)
     where
         R: Read,
     {
@@ -180,7 +197,11 @@ impl DataCursor {
             Ok(read) => read,
             Err(ref e) => {
                 if e.kind() == ErrorKind::UnexpectedEof {
-                    0
+                    match eof_behavior {
+                        EofBehavior::Zero => 0,
+                        EofBehavior::Neg1 => 0_u8.overflowing_sub(1).0,
+                        EofBehavior::NoChange => self.vec[self.pos],
+                    }
                 } else {
                     result.unwrap();
                     unreachable!();
