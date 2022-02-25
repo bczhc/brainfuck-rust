@@ -30,6 +30,7 @@ name = "brainfuck"
 version = "1.0.0"
 dependencies = [
  "clap",
+ "quick-error",
 ]
 
 [[package]]
@@ -92,6 +93,12 @@ checksum = "8e22443d1643a904602595ba1cd8f7d896afe56d26712531c5ff73a15b2fbf64"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "quick-error"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a993555f31e5a609f617c12db6250dedcac1b0a85076912c436e6fc9b2c8e6a3"
 
 [[package]]
 name = "strsim"

@@ -4,15 +4,15 @@ mod lib;
 
 use crate::lib::EofBehavior;
 use clap::{Arg, Command};
-use std::borrow::BorrowMut;
-use std::cell::RefCell;
 use std::collections::LinkedList;
-use std::fs::{read, write, File};
-use std::io::{stdin, stdout, ErrorKind, Read, Stdout, Write};
-use std::ops::{Deref, DerefMut};
-use std::ptr::null_mut;
+use std::fs::File;
+use std::io::{stdin, stdout, ErrorKind, Read, Write};
+use std::str::FromStr;
 
-fn main() {
+mod errors;
+use errors::{Error, Result};
+
+fn main() -> Result<()> {
     let matches = Command::new("brainfuck")
         .bin_name("bf")
         .author("bczhc <bczhc0@126.com>")
@@ -43,16 +43,16 @@ fn main() {
     let mut src = String::new();
     if matches.is_present("src") {
         let src_path = matches.value_of("src").unwrap();
-        let mut file = File::open(src_path).unwrap();
-        file.read_to_string(&mut src).unwrap();
+        let mut file = File::open(src_path)?;
+        file.read_to_string(&mut src)?;
     } else {
-        stdin.read_to_string(&mut src).unwrap();
+        stdin.read_to_string(&mut src)?;
     }
 
     let eof_behavior = EofBehavior::from_str(matches.value_of("eof-behavior").unwrap()).unwrap();
 
     if !check_brackets(&src) {
-        panic!("Unpaired brackets");
+        return Err(Error::UnpairedBrackets);
     }
 
     let mut data_cursor = DataCursor::new();
@@ -65,7 +65,7 @@ fn main() {
             b'+' => data_cursor.increase(),
             b'-' => data_cursor.decrease(),
             b',' => data_cursor.read_and_set(&mut stdin, &eof_behavior),
-            b'.' => data_cursor.print(&mut stdout),
+            b'.' => data_cursor.print(&mut stdout)?,
             b'[' => {
                 if data_cursor.current() == 0 {
                     inst_cursor
@@ -79,11 +79,12 @@ fn main() {
             }
             _ => {}
         }
-        inst_cursor.move_right();
+        inst_cursor.move_next();
         if inst_cursor.position() >= inst_cursor.len() {
             break;
         }
     }
+    Ok(())
 }
 
 fn find_paired_left_bracket(src: &str, position: usize) -> usize {
@@ -107,11 +108,10 @@ fn find_paired_left_bracket(src: &str, position: usize) -> usize {
 fn find_paired_right_bracket(src: &str, position: usize) -> usize {
     let bytes = src.as_bytes();
     let mut count = 0_usize;
-    for i in (position + 1)..src.len() {
-        match bytes[i] {
-            b'[' => {
-                count += 1;
-            }
+
+    for (i, b) in bytes.iter().enumerate().take(src.len()).skip(position + 1) {
+        match b {
+            b'[' => count += 1,
             b']' => {
                 if count == 0 {
                     return i;
@@ -180,12 +180,13 @@ impl DataCursor {
         *x = x.overflowing_sub(1).0;
     }
 
-    fn print<W>(&self, out: &mut W)
+    fn print<W>(&self, out: &mut W) -> Result<()>
     where
         W: Write,
     {
-        out.write_1_byte(self.vec[self.pos]).unwrap();
-        out.flush().unwrap();
+        out.write_1_byte(self.vec[self.pos])?;
+        out.flush()?;
+        Ok(())
     }
 
     fn read_and_set<R>(&mut self, reader: &mut R, eof_behavior: &EofBehavior)
@@ -230,12 +231,8 @@ impl<'a> StringCursor<'a> {
         self.s.as_bytes()[self.pos]
     }
 
-    fn move_right(&mut self) {
+    fn move_next(&mut self) {
         self.pos += 1;
-    }
-
-    fn move_left(&mut self) {
-        self.pos -= 1;
     }
 
     fn position(&self) -> usize {

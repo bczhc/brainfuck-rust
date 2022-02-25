@@ -1,16 +1,20 @@
+use std::str::FromStr;
+
 pub enum EofBehavior {
     Zero,
     Neg1,
     NoChange,
 }
 
-impl EofBehavior {
-    pub fn from_str(s: &str) -> Option<Self> {
+impl FromStr for EofBehavior {
+    type Err = ();
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "zero" => Some(Self::Zero),
-            "neg1" => Some(Self::Neg1),
-            "nc" => Some(Self::NoChange),
-            _ => None,
+            "zero" => Ok(Self::Zero),
+            "neg1" => Ok(Self::Neg1),
+            "nc" => Ok(Self::NoChange),
+            _ => Err(()),
         }
     }
 }
