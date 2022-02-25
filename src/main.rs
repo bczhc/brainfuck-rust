@@ -47,6 +47,10 @@ fn main() {
             }
             _ => {}
         }
+        inst_cursor.move_right();
+        if inst_cursor.position() >= inst_cursor.len() {
+            break;
+        }
     }
 }
 
@@ -194,6 +198,10 @@ impl<'a> StringCursor<'a> {
     fn set_position(&mut self, position: usize) {
         self.pos = position;
     }
+
+    fn len(&self) -> usize {
+        self.s.len()
+    }
 }
 
 struct Lazy<T, F>
@@ -224,11 +232,10 @@ where
 
     fn deref(&self) -> &Self::Target {
         unsafe {
-            let obj_ptr = *self.ptr;
-            if obj_ptr.is_null() {
+            if (*self.ptr).is_null() {
                 *self.ptr = Box::into_raw(Box::new((self.initializer)()));
             }
-            &*obj_ptr
+            &**self.ptr
         }
     }
 }
@@ -239,11 +246,10 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe {
-            let obj_ptr = *self.ptr;
-            if obj_ptr.is_null() {
+            if (*self.ptr).is_null() {
                 *self.ptr = Box::into_raw(Box::new((self.initializer)()));
             }
-            &mut *obj_ptr
+            &mut **self.ptr
         }
     }
 }
