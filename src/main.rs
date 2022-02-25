@@ -14,21 +14,29 @@ fn main() {
         .bin_name("bf")
         .author("bczhc <bczhc0@126.com>")
         .about("Naive Brainfuck interpreter")
-        .arg(Arg::new("src").id("src").required(true).help("Source file"))
+        .arg(
+            Arg::new("src")
+                .id("src")
+                .required(false)
+                .help("Source file. If not given, read source from stdin."),
+        )
         .get_matches();
 
-    let src_path = matches.value_of("src").unwrap();
-    let mut src_file = File::open(src_path).unwrap();
+    let mut stdout = stdout();
+    let mut stdin = stdin();
 
     let mut src = String::new();
-    src_file.read_to_string(&mut src).unwrap();
+    if matches.is_present("src") {
+        let src_path = matches.value_of("src").unwrap();
+        let mut file = File::open(src_path).unwrap();
+        file.read_to_string(&mut src).unwrap();
+    } else {
+        stdin.read_to_string(&mut src).unwrap();
+    }
 
     if !check_brackets(&src) {
         panic!("Unpaired brackets");
     }
-
-    let mut stdout = stdout();
-    let mut stdin = stdin();
 
     let mut data_cursor = DataCursor::new();
     let mut inst_cursor = StringCursor::new(&src);
