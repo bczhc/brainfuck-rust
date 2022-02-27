@@ -5,7 +5,7 @@
 #define MF if (fflush(stdout) != 0) { abort(); }
 #define M1(x) *ptr += x;
 #define M2(x) ptr += x;
-#define M3 c = getchar(); if (c != EOF) { *ptr = c; } else { *ptr = 0; }
+#define M3(x) c = getchar(); if (c != EOF) { *ptr = c; } else { *ptr = x; }
 #define M4(x) x (*ptr);
 #define M5 while (*ptr) {
 #define M6 }

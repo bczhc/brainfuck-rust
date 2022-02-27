@@ -7,7 +7,7 @@
 //! - M6: ]
 
 use brainfuck::errors::*;
-use brainfuck::{minimize, CellSize, Specifications, WriteString};
+use brainfuck::{minimize, CellSize, EofBehavior, Specifications, WriteString};
 use std::io::Write;
 
 #[allow(unused)]
@@ -60,7 +60,7 @@ where
                 i = j;
                 continue;
             }
-            b',' => Command::GetChar.commit(output)?,
+            b',' => Command::GetChar(specs.eof_behavior.clone()).commit(output)?,
             b'.' => Command::PutChar(specs.cell_bits.clone()).commit(output)?,
             b'[' => Command::StartWhile.commit(output)?,
             b']' => Command::EndWhile.commit(output)?,
@@ -97,7 +97,7 @@ const C_MAIN_END: &str = "return 0;\n}";
 enum Command {
     Increase(i32),
     MoveRight(i32),
-    GetChar,
+    GetChar(EofBehavior),
     PutChar(CellSize),
     StartWhile,
     EndWhile,
@@ -111,7 +111,7 @@ impl Command {
         match self {
             Command::Increase(x) => output.write_line(&format!("M1({})", x)),
             Command::MoveRight(x) => output.write_line(&format!("M2({})", x)),
-            Command::GetChar => output.write_line("M3"),
+            Command::GetChar(b) => output.write_line(&format!("M3({})", get_eof_value_c_code(b))),
             Command::PutChar(s) => output.write_line(&format!("M4({})", get_c_print_macro(s))),
             Command::StartWhile => output.write_line("M5"),
             Command::EndWhile => output.write_line("M6"),
@@ -131,4 +131,12 @@ impl GetCType for CellSize {
 
 fn get_c_print_macro(cell_size: &CellSize) -> String {
     format!("printU{}", cell_size.bits_size())
+}
+
+fn get_eof_value_c_code(eof_behavior: &EofBehavior) -> &'static str {
+    match eof_behavior {
+        EofBehavior::Zero => "0",
+        EofBehavior::Neg1 => "-1",
+        EofBehavior::NoChange => "*ptr",
+    }
 }
