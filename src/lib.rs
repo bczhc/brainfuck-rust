@@ -84,3 +84,28 @@ pub fn check_brackets(s: &str) -> bool {
     }
     stack.is_empty()
 }
+
+pub trait WriteString<W>
+where
+    W: Write,
+{
+    fn write_str(&mut self, s: &str) -> std::io::Result<()>;
+
+    fn new_line(&mut self) -> std::io::Result<()> {
+        self.write_str("\n")
+    }
+
+    fn write_line(&mut self, line: &str) -> std::io::Result<()> {
+        self.write_str(line)?;
+        self.new_line()
+    }
+}
+
+impl<W> WriteString<W> for W
+where
+    W: Write,
+{
+    fn write_str(&mut self, s: &str) -> std::io::Result<()> {
+        self.write_all(s.as_bytes())
+    }
+}

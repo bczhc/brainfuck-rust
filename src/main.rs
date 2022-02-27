@@ -81,7 +81,7 @@ fn main() -> Result<()> {
     }
 
     if matches.is_present("convert") {
-        println!("{}", converter::convert(&src));
+        converter::convert(&src, &mut stdout)?;
     } else {
         interpreter::start(&src, &mut stdin, &mut stdout, &eof_behavior)?;
     }
