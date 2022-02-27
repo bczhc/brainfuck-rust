@@ -1,5 +1,13 @@
+//! Macro mappings:
+//! - M1: + -
+//! - M2: < >
+//! - M3: ,
+//! - M4: .
+//! - M5: [
+//! - M6: ]
+
 use brainfuck::errors::*;
-use brainfuck::{minimize, Specifications, WriteString};
+use brainfuck::{minimize, CellSize, Specifications, WriteString};
 use std::io::Write;
 
 #[allow(unused)]
@@ -10,9 +18,10 @@ where
     let minimized = minimize(src);
     let bytes = minimized.as_bytes();
 
-    output.write_line(C_STATIC_INIT)?;
+    output.write_line(C_INIT)?;
+    output.write_line(&compose_c_buf_init_str(&specs.cell_bits))?;
     output.write_line(C_MAIN_START)?;
-    output.write_line(C_MAIN_INIT)?;
+    output.write_line(&compose_c_main_init_str(&specs.cell_bits))?;
 
     let mut i = 0_usize;
     while i < bytes.len() {
@@ -52,7 +61,7 @@ where
                 continue;
             }
             b',' => Command::GetChar.commit(output)?,
-            b'.' => Command::PutChar.commit(output)?,
+            b'.' => Command::PutChar(specs.cell_bits.clone()).commit(output)?,
             b'[' => Command::StartWhile.commit(output)?,
             b']' => Command::EndWhile.commit(output)?,
             _ => {
@@ -67,25 +76,19 @@ where
     Ok(())
 }
 
-/// Macro mappings:
-/// - M1: + -
-/// - M2: < >
-/// - M3: ,
-/// - M4: .
-/// - M5: [
-/// - M6: ]
-const C_STATIC_INIT: &str = r"#include <stdio.h>
-#define M1(x) *ptr += x;
-#define M2(x) ptr += x;
-#define M3 c = getchar(); if (c != EOF) {*ptr = c;} else {*ptr = 0;}
-#define M4 putchar(*ptr); fflush(stdout);
-#define M5 while (*ptr) {
-#define M6 }
-unsigned char buf[0xffff];
-";
+const C_INIT: &str = include_str!("./data/c_init.c");
 
-const C_MAIN_INIT: &str = r"unsigned char *ptr = buf;
-unsigned char c;";
+fn compose_c_buf_init_str(cell_size: &CellSize) -> String {
+    format!("{} buf[0xffff];", cell_size.c_type())
+}
+
+fn compose_c_main_init_str(cell_size: &CellSize) -> String {
+    format!(
+        r"{0} *ptr = buf;
+int c;",
+        cell_size.c_type()
+    )
+}
 
 const C_MAIN_START: &str = "int main() {";
 
@@ -95,7 +98,7 @@ enum Command {
     Increase(i32),
     MoveRight(i32),
     GetChar,
-    PutChar,
+    PutChar(CellSize),
     StartWhile,
     EndWhile,
 }
@@ -109,9 +112,23 @@ impl Command {
             Command::Increase(x) => output.write_line(&format!("M1({})", x)),
             Command::MoveRight(x) => output.write_line(&format!("M2({})", x)),
             Command::GetChar => output.write_line("M3"),
-            Command::PutChar => output.write_line("M4"),
+            Command::PutChar(s) => output.write_line(&format!("M4({})", get_c_print_macro(s))),
             Command::StartWhile => output.write_line("M5"),
             Command::EndWhile => output.write_line("M6"),
         }
     }
+}
+
+trait GetCType {
+    fn c_type(&self) -> String;
+}
+
+impl GetCType for CellSize {
+    fn c_type(&self) -> String {
+        format!("uint{}_t", self.bits_size())
+    }
+}
+
+fn get_c_print_macro(cell_size: &CellSize) -> String {
+    format!("printU{}", cell_size.bits_size())
 }

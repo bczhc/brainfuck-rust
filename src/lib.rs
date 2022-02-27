@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 pub mod errors;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum EofBehavior {
     Zero,
     Neg1,
@@ -128,7 +128,7 @@ where
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CellSize {
     U8,
     U16,
@@ -144,6 +144,15 @@ impl CellSize {
             u32::BITS => Some(Self::U32),
             u64::BITS => Some(Self::U64),
             _ => None,
+        }
+    }
+
+    pub fn bits_size(&self) -> u32 {
+        match self {
+            CellSize::U8 => 8,
+            CellSize::U16 => 16,
+            CellSize::U32 => 32,
+            CellSize::U64 => 64,
         }
     }
 }
@@ -164,7 +173,7 @@ impl FromStr for CellSize {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Specifications {
     pub cell_bits: CellSize,
     pub eof_behavior: EofBehavior,
