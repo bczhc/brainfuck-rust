@@ -1,6 +1,6 @@
-use crate::errors::*;
-use crate::{EofBehavior, Specifications};
-use brainfuck::{ReadOneByte, WriteOneByte};
+use brainfuck::errors::*;
+use brainfuck::{Cell, ReadOneByte};
+use brainfuck::{CellSize, EofBehavior, Specifications};
 use std::io::{ErrorKind, Read, Write};
 
 pub fn start<R, W>(src: &str, reader: &mut R, writer: &mut W, specs: &Specifications) -> Result<()>
@@ -8,37 +8,82 @@ where
     R: Read,
     W: Write,
 {
-    let mut data_cursor = DataCursor::new();
-    let mut inst_cursor = StringCursor::new(src);
+    let mut runner = Runner::new(src, reader, writer, specs);
+    match specs.cell_bits {
+        CellSize::U8 => runner.run::<u8>(),
+        CellSize::U16 => runner.run::<u16>(),
+        CellSize::U32 => runner.run::<u32>(),
+        CellSize::U64 => runner.run::<u64>(),
+    }
+}
 
-    loop {
-        match inst_cursor.current() {
-            b'<' => data_cursor.move_left(),
-            b'>' => data_cursor.move_right(),
-            b'+' => data_cursor.increase(),
-            b'-' => data_cursor.decrease(),
-            b',' => data_cursor.read_and_set(reader, &specs.eof_behavior),
-            b'.' => data_cursor.print(writer)?,
-            b'[' => {
-                if data_cursor.current() == 0 {
-                    inst_cursor
-                        .set_position(find_paired_right_bracket(src, inst_cursor.position()));
-                }
-            }
-            b']' => {
-                if data_cursor.current() != 0 {
-                    inst_cursor.set_position(find_paired_left_bracket(src, inst_cursor.position()))
-                }
-            }
-            _ => {}
-        }
-        inst_cursor.move_next();
-        if inst_cursor.position() >= inst_cursor.len() {
-            break;
+struct Runner<'a, R, W>
+where
+    R: Read,
+    W: Write,
+{
+    src: &'a str,
+    reader: &'a mut R,
+    writer: &'a mut W,
+    specs: &'a Specifications,
+}
+
+impl<'a, R, W> Runner<'a, R, W>
+where
+    R: Read,
+    W: Write,
+{
+    fn new(src: &'a str, reader: &'a mut R, writer: &'a mut W, specs: &'a Specifications) -> Self {
+        Self {
+            src,
+            reader,
+            writer,
+            specs,
         }
     }
 
-    Ok(())
+    fn run<N>(&mut self) -> Result<()>
+    where
+        N: CellType,
+        <N as std::convert::TryFrom<u8>>::Error: std::fmt::Debug,
+    {
+        let mut data_cursor = DataCursor::<N>::new();
+        let mut inst_cursor = StringCursor::new(self.src);
+
+        loop {
+            match inst_cursor.current() {
+                b'<' => data_cursor.move_left(),
+                b'>' => data_cursor.move_right(),
+                b'+' => data_cursor.increase(),
+                b'-' => data_cursor.decrease(),
+                b',' => data_cursor.read_and_set(self.reader, &self.specs.eof_behavior),
+                b'.' => data_cursor.print(self.writer)?,
+                b'[' => {
+                    if data_cursor.current() == N::default() {
+                        inst_cursor.set_position(find_paired_right_bracket(
+                            self.src,
+                            inst_cursor.position(),
+                        ));
+                    }
+                }
+                b']' => {
+                    if data_cursor.current() != N::default() {
+                        inst_cursor.set_position(find_paired_left_bracket(
+                            self.src,
+                            inst_cursor.position(),
+                        ))
+                    }
+                }
+                _ => {}
+            }
+            inst_cursor.move_next();
+            if inst_cursor.position() >= inst_cursor.len() {
+                break;
+            }
+        }
+
+        Ok(())
+    }
 }
 
 fn find_paired_left_bracket(src: &str, position: usize) -> usize {
@@ -78,15 +123,34 @@ fn find_paired_right_bracket(src: &str, position: usize) -> usize {
     unreachable!()
 }
 
-struct DataCursor {
-    vec: Vec<u8>,
+trait CellType: Cell + Default + Clone + Copy + TryFrom<u8> + Eq + PartialEq {}
+
+macro_rules! impl_cell_type {
+    ($x:ty) => {
+        impl CellType for $x {}
+    };
+}
+
+impl_cell_type!(u8);
+impl_cell_type!(u16);
+impl_cell_type!(u32);
+impl_cell_type!(u64);
+
+struct DataCursor<N>
+where
+    N: CellType,
+{
+    vec: Vec<N>,
     pos: usize,
 }
 
-impl DataCursor {
+impl<N> DataCursor<N>
+where
+    N: CellType,
+{
     fn new() -> Self {
         Self {
-            vec: vec![0_u8; 100],
+            vec: vec![N::default(); 100],
             pos: 0,
         }
     }
@@ -95,7 +159,7 @@ impl DataCursor {
         self.pos += 1;
         let capacity = self.vec.capacity();
         if self.pos >= capacity {
-            self.vec.resize(capacity * 2, 0);
+            self.vec.resize(capacity * 2, N::default());
         }
     }
 
@@ -108,35 +172,41 @@ impl DataCursor {
 
     fn increase(&mut self) {
         let x = self.vec.get_mut(self.pos).unwrap();
-        *x = x.overflowing_add(1).0;
+        x.overflowing_inc_assign();
     }
 
     fn decrease(&mut self) {
         let x = self.vec.get_mut(self.pos).unwrap();
-        *x = x.overflowing_sub(1).0;
+        x.overflowing_dec_assign();
     }
 
     fn print<W>(&self, out: &mut W) -> Result<()>
     where
         W: Write,
     {
-        out.write_1_byte(self.vec[self.pos])?;
+        self.vec[self.pos].print_char(out)?;
         out.flush()?;
+
         Ok(())
     }
 
     fn read_and_set<R>(&mut self, reader: &mut R, eof_behavior: &EofBehavior)
     where
         R: Read,
+        <N as std::convert::TryFrom<u8>>::Error: std::fmt::Debug,
     {
         let result = reader.read_1_byte();
         let read = match result {
-            Ok(read) => read,
+            Ok(read) => N::try_from(read).unwrap(),
             Err(ref e) => {
                 if e.kind() == ErrorKind::UnexpectedEof {
                     match eof_behavior {
-                        EofBehavior::Zero => 0,
-                        EofBehavior::Neg1 => 0_u8.overflowing_sub(1).0,
+                        EofBehavior::Zero => N::default(),
+                        EofBehavior::Neg1 => {
+                            let mut n = N::default();
+                            n.overflowing_dec_assign();
+                            n
+                        }
                         EofBehavior::NoChange => self.vec[self.pos],
                     }
                 } else {
@@ -148,7 +218,7 @@ impl DataCursor {
         self.vec[self.pos] = read;
     }
 
-    fn current(&self) -> u8 {
+    fn current(&self) -> N {
         self.vec[self.pos]
     }
 }

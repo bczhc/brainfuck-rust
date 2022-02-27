@@ -2,6 +2,9 @@ use std::collections::LinkedList;
 use std::io::{Read, Write};
 use std::str::FromStr;
 
+pub mod errors;
+
+#[derive(Debug)]
 pub enum EofBehavior {
     Zero,
     Neg1,
@@ -110,6 +113,22 @@ where
     }
 }
 
+pub trait WriteChar {
+    fn write_char(&mut self, c: char) -> std::io::Result<()>;
+}
+
+impl<W> WriteChar for W
+where
+    W: Write,
+{
+    fn write_char(&mut self, c: char) -> std::io::Result<()> {
+        let mut buf = vec![0_u8; c.len_utf8()];
+        c.encode_utf8(&mut buf);
+        self.write_all(&buf)
+    }
+}
+
+#[derive(Debug)]
 pub enum CellSize {
     U8,
     U16,
@@ -132,7 +151,7 @@ impl CellSize {
 impl FromStr for CellSize {
     type Err = ();
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let bits = s.parse::<u32>();
         if bits.is_err() {
             return Err(());
@@ -145,7 +164,102 @@ impl FromStr for CellSize {
     }
 }
 
+#[derive(Debug)]
 pub struct Specifications {
     pub cell_bits: CellSize,
     pub eof_behavior: EofBehavior,
+}
+
+pub trait Cell {
+    fn overflowing_inc_assign(&mut self);
+    fn overflowing_dec_assign(&mut self);
+    fn print_char<W>(&self, output: &mut W) -> errors::Result<()>
+    where
+        W: Write;
+}
+impl Cell for u8 {
+    fn overflowing_inc_assign(&mut self) {
+        *self = self.overflowing_add(1).0;
+    }
+
+    fn overflowing_dec_assign(&mut self) {
+        *self = self.overflowing_sub(1).0;
+    }
+
+    fn print_char<W>(&self, output: &mut W) -> errors::Result<()>
+    where
+        W: Write,
+    {
+        output.write_1_byte(*self)?;
+        Ok(())
+    }
+}
+
+impl Cell for u16 {
+    fn overflowing_inc_assign(&mut self) {
+        *self = self.overflowing_add(1).0;
+    }
+
+    fn overflowing_dec_assign(&mut self) {
+        *self = self.overflowing_sub(1).0;
+    }
+
+    fn print_char<W>(&self, output: &mut W) -> errors::Result<()>
+    where
+        W: Write,
+    {
+        let cp = *self as u32;
+        if cp < 0x10000 {
+            cp.print_char(output)
+        } else {
+            unimplemented!()
+        }
+    }
+}
+
+impl Cell for u32 {
+    fn overflowing_inc_assign(&mut self) {
+        *self = self.overflowing_add(1).0;
+    }
+
+    fn overflowing_dec_assign(&mut self) {
+        *self = self.overflowing_sub(1).0;
+    }
+
+    fn print_char<W>(&self, output: &mut W) -> errors::Result<()>
+    where
+        W: Write,
+    {
+        match char::from_u32(*self) {
+            None => Err(errors::Error::InvalidUnicode),
+            Some(c) => {
+                output.write_char(c)?;
+                Ok(())
+            }
+        }
+    }
+}
+impl Cell for u64 {
+    fn overflowing_inc_assign(&mut self) {
+        *self = self.overflowing_add(1).0;
+    }
+
+    fn overflowing_dec_assign(&mut self) {
+        *self = self.overflowing_sub(1).0;
+    }
+
+    fn print_char<W>(&self, output: &mut W) -> errors::Result<()>
+    where
+        W: Write,
+    {
+        let u = u32::try_from(*self)?;
+        u.print_char(output)
+    }
+}
+
+#[allow(unused)]
+pub fn surrogate_pair_to_unicode(lead: u16, trail: u16) -> u32 {
+    (((((lead - 0xd800_u16) & 0b11_1111_1111_u16) as u32) << 10u32)
+        | (((trail - 0xdc00_u16) & 0b11_1111_1111_u16) as u32))
+        + 0x10000
 }

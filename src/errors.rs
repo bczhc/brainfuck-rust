@@ -5,6 +5,8 @@ quick_error! {
     pub enum Error {
         Io(err: std::io::Error) { from() }
         UnpairedBrackets
+        Infallible(err: std::num::TryFromIntError) { from() }
+        InvalidUnicode
     }
 }
 

@@ -1,8 +1,6 @@
 #![feature(mixed_integer_ops)]
 
-mod lib;
-
-use crate::lib::{check_brackets, minimize, CellSize, EofBehavior, Specifications};
+use brainfuck::{check_brackets, minimize, CellSize, EofBehavior, Specifications};
 use clap::{Arg, Command};
 use std::fs::File;
 use std::io::{stdin, stdout, Read};
@@ -10,8 +8,7 @@ use std::io::{stdin, stdout, Read};
 mod converter;
 mod interpreter;
 
-mod errors;
-use errors::{Error, Result};
+use brainfuck::errors::*;
 
 fn main() -> Result<()> {
     let matches = Command::new("brainfuck")

@@ -1,6 +1,5 @@
-use crate::errors::*;
-use crate::{minimize, Specifications};
-use brainfuck::WriteString;
+use brainfuck::errors::*;
+use brainfuck::{minimize, Specifications, WriteString};
 use std::io::Write;
 
 #[allow(unused)]
