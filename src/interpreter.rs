@@ -1,14 +1,9 @@
 use crate::errors::*;
-use crate::EofBehavior;
+use crate::{EofBehavior, Specifications};
 use brainfuck::{ReadOneByte, WriteOneByte};
 use std::io::{ErrorKind, Read, Write};
 
-pub fn start<R, W>(
-    src: &str,
-    reader: &mut R,
-    writer: &mut W,
-    eof_behavior: &EofBehavior,
-) -> Result<()>
+pub fn start<R, W>(src: &str, reader: &mut R, writer: &mut W, specs: &Specifications) -> Result<()>
 where
     R: Read,
     W: Write,
@@ -22,7 +17,7 @@ where
             b'>' => data_cursor.move_right(),
             b'+' => data_cursor.increase(),
             b'-' => data_cursor.decrease(),
-            b',' => data_cursor.read_and_set(reader, eof_behavior),
+            b',' => data_cursor.read_and_set(reader, &specs.eof_behavior),
             b'.' => data_cursor.print(writer)?,
             b'[' => {
                 if data_cursor.current() == 0 {

@@ -109,3 +109,43 @@ where
         self.write_all(s.as_bytes())
     }
 }
+
+pub enum CellSize {
+    U8,
+    U16,
+    U32,
+    U64,
+}
+
+impl CellSize {
+    pub fn from_size(bits: u32) -> Option<Self> {
+        match bits {
+            u8::BITS => Some(Self::U8),
+            u16::BITS => Some(Self::U16),
+            u32::BITS => Some(Self::U32),
+            u64::BITS => Some(Self::U64),
+            _ => None,
+        }
+    }
+}
+
+impl FromStr for CellSize {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bits = s.parse::<u32>();
+        if bits.is_err() {
+            return Err(());
+        }
+        let bits = bits.unwrap();
+        match CellSize::from_size(bits) {
+            None => Err(()),
+            Some(s) => Ok(s),
+        }
+    }
+}
+
+pub struct Specifications {
+    pub cell_bits: CellSize,
+    pub eof_behavior: EofBehavior,
+}

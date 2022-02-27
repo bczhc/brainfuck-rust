@@ -2,11 +2,10 @@
 
 mod lib;
 
-use crate::lib::{check_brackets, minimize, EofBehavior};
+use crate::lib::{check_brackets, minimize, CellSize, EofBehavior, Specifications};
 use clap::{Arg, Command};
 use std::fs::File;
 use std::io::{stdin, stdout, Read};
-use std::str::FromStr;
 
 mod converter;
 mod interpreter;
@@ -55,6 +54,17 @@ fn main() -> Result<()> {
                 .long("convert")
                 .help("Convert to C source code"),
         )
+        .arg(
+            Arg::new("cell-size")
+                .id("cell-size")
+                .takes_value(true)
+                .required(false)
+                .default_value("8")
+                .possible_values(["8", "16", "32", "64"])
+                .short('s')
+                .long("cell-size")
+                .help("Specify the size of the cells in bits"),
+        )
         .get_matches();
 
     let mut stdout = stdout();
@@ -74,16 +84,27 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
-    let eof_behavior = EofBehavior::from_str(matches.value_of("eof-behavior").unwrap()).unwrap();
+    let specs = Specifications {
+        eof_behavior: matches
+            .value_of("eof-behavior")
+            .unwrap()
+            .parse::<EofBehavior>()
+            .unwrap(),
+        cell_bits: matches
+            .value_of("cell-size")
+            .unwrap()
+            .parse::<CellSize>()
+            .unwrap(),
+    };
 
     if !check_brackets(&src) {
         return Err(Error::UnpairedBrackets);
     }
 
     if matches.is_present("convert") {
-        converter::convert(&src, &mut stdout)?;
+        converter::convert(&src, &mut stdout, &specs)?;
     } else {
-        interpreter::start(&src, &mut stdin, &mut stdout, &eof_behavior)?;
+        interpreter::start(&src, &mut stdin, &mut stdout, &specs)?;
     }
 
     Ok(())

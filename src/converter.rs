@@ -1,10 +1,10 @@
 use crate::errors::*;
-use crate::minimize;
+use crate::{minimize, Specifications};
 use brainfuck::WriteString;
 use std::io::Write;
 
 #[allow(unused)]
-pub fn convert<W>(src: &str, output: &mut W) -> Result<()>
+pub fn convert<W>(src: &str, output: &mut W, specs: &Specifications) -> Result<()>
 where
     W: Write,
 {
