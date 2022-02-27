@@ -22,6 +22,7 @@ where
     output.write_line(&compose_c_buf_init_str(&specs.cell_bits))?;
     output.write_line(C_MAIN_START)?;
     output.write_line(&compose_c_main_init_str(&specs.cell_bits))?;
+    output.new_line()?;
 
     let mut i = 0_usize;
     while i < bytes.len() {
@@ -84,15 +85,16 @@ fn compose_c_buf_init_str(cell_size: &CellSize) -> String {
 
 fn compose_c_main_init_str(cell_size: &CellSize) -> String {
     format!(
-        r"{0} *ptr = buf;
-int c;",
-        cell_size.c_type()
+        r"{1}{0} *ptr = buf;
+{1}int c;",
+        cell_size.c_type(),
+        SPACE4
     )
 }
 
 const C_MAIN_START: &str = "int main() {";
 
-const C_MAIN_END: &str = "return 0;\n}";
+const C_MAIN_END: &str = "    return 0;\n}";
 
 enum Command {
     Increase(i32),
@@ -109,12 +111,16 @@ impl Command {
         W: Write,
     {
         match self {
-            Command::Increase(x) => output.write_line(&format!("M1({})", x)),
-            Command::MoveRight(x) => output.write_line(&format!("M2({})", x)),
-            Command::GetChar(b) => output.write_line(&format!("M3({})", get_eof_value_c_code(b))),
-            Command::PutChar(s) => output.write_line(&format!("M4({})", get_c_print_macro(s))),
-            Command::StartWhile => output.write_line("M5"),
-            Command::EndWhile => output.write_line("M6"),
+            Command::Increase(x) => output.write_line(&format!("{}M1({})", SPACE4, x)),
+            Command::MoveRight(x) => output.write_line(&format!("{}M2({})", SPACE4, x)),
+            Command::GetChar(b) => {
+                output.write_line(&format!("{}M3({})", SPACE4, get_eof_value_c_code(b)))
+            }
+            Command::PutChar(s) => {
+                output.write_line(&format!("{}M4({})", SPACE4, get_c_print_macro(s)))
+            }
+            Command::StartWhile => output.write_line(&format!("{}M5", SPACE4)),
+            Command::EndWhile => output.write_line(&format!("{}M6", SPACE4)),
         }
     }
 }
@@ -140,3 +146,5 @@ fn get_eof_value_c_code(eof_behavior: &EofBehavior) -> &'static str {
         EofBehavior::NoChange => "*ptr",
     }
 }
+
+const SPACE4: &str = "    ";
